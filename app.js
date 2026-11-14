@@ -177,12 +177,14 @@
     const t = view();
     const lod = t.lodging;
     $('#app').innerHTML = `
-      <div class="card header-card">
+      <section class="viewing">
         <h1>${esc(t.title)}</h1>
         <div class="sub">${esc(t.subtitle || '')}</div>
+      </section>
+      <div class="card info-card">
         <div class="info">
           ${(t.flights || []).map((f) => `<div class="info-row"><b>✈ ${esc(f.label)}</b><span>${esc(f.text)}</span></div>`).join('')}
-          <div class="info-row"><b>🏨 숙소</b><span>${esc(lod.name)}<br><small>${esc(lod.note || '')}</small><br><a class="maplink" style="margin-top:6px" target="_blank" rel="noopener" href="${searchUrl(lod.query)}">📍 구글 지도</a></span></div>
+          <div class="info-row"><b>🏨 숙소</b><span>${esc(lod.name)}<br><small>${esc(lod.note || '')}</small><br><br><a class="maplink" style="margin-top:8px" target="_blank" rel="noopener" href="${searchUrl(lod.query)}">📍 구글 지도</a></span></div>
           <div class="info-row"><b>👨‍👩‍👧‍👦 인원</b><span>${esc(t.party)}</span></div>
           <div class="info-row"><b>💴 예산</b><span>${esc(t.budget)}</span></div>
         </div>
@@ -279,6 +281,7 @@
   $('#modeMod').onclick = () => setMode('mod');
   function setMode(m) { S.mode = m; localStorage.setItem('ftrip:mode', m); render(); }
   $('#tripSelect').onchange = (e) => { location.hash = 'trip=' + e.target.value; };
+  $('#dlg').addEventListener('click', (e) => { if (e.target === $('#dlg')) $('#dlg').close(); });
   window.addEventListener('hashchange', () => loadTrip(tripFromHash()));
   $('#themeBtn').onclick = () => {
     const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light');

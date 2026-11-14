@@ -5,34 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
   <title>가족 여행 일정표</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/roboto@5.3.0/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="topbar-row">
+  <header class="appbar">
+    <div class="appbar-row">
       <select id="tripSelect" aria-label="여행 선택"></select>
-      <div class="seg" role="group" aria-label="모드">
-        <button id="modeOrig" data-mode="orig">원본 계획</button>
-        <button id="modeMod" data-mode="mod">변경된 일정</button>
-      </div>
-      <button id="themeBtn" class="icon-btn" aria-label="테마 전환" title="다크/라이트 전환">🌓</button>
+      <button id="themeBtn" class="icon-btn" aria-label="다크/라이트 전환" title="다크/라이트 전환">🌓</button>
     </div>
-    <div class="topbar-row tools" id="tools">
-      <label class="chk"><input type="checkbox" id="cascade" checked> 이후 일정 시간도 함께 밀기/당기기</label>
-      <span class="spacer"></span>
-      <button id="exportBtn" class="btn">변경사항 JSON 내보내기</button>
-      <button id="resetBtn" class="btn danger">원본으로 초기화</button>
-    </div>
-    <div id="modeNote" class="mode-note"></div>
   </header>
 
   <main id="app" class="wrap"><p class="loading">불러오는 중…</p></main>
+
+  <!-- 하단 인터랙션 영역 -->
+  <div class="bottom">
+    <div class="tools hidden" id="tools">
+      <label class="switch-row"><span>이후 일정 시간도 함께 밀기/당기기</span><input type="checkbox" id="cascade" checked></label>
+      <div class="tools-btns">
+        <button id="exportBtn" class="btn primary">변경사항 JSON 내보내기</button>
+        <button id="resetBtn" class="btn">원본으로 초기화</button>
+      </div>
+    </div>
+    <div id="modeNote" class="mode-note"></div>
+    <nav class="bottomnav seg" role="tablist" aria-label="모드">
+      <button id="modeOrig" data-mode="orig" role="tab">원본 계획</button>
+      <button id="modeMod" data-mode="mod" role="tab">변경된 일정</button>
+    </nav>
+  </div>
 
   <dialog id="dlg">
     <form method="dialog" id="dlgForm"></form>
   </dialog>
 
-  <footer class="foot">가족 여행 일정표 · GitHub Pages 정적 웹앱</footer>
   <script src="app.js"></script>
 </body>
 </html>
