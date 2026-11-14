@@ -1,4 +1,4 @@
-/* 가족 여행 일정표 - Vanilla JS, 백엔드 없음 */
+﻿/* 가족 여행 일정표 - Vanilla JS, 백엔드 없음 */
 (() => {
   'use strict';
 
@@ -148,9 +148,9 @@
   }
 
   function routeStops(day) {
-    const stops = [{ name: day.origin.name, q: day.origin.q }];
+    const stops = [{ name: day.origin.name, q: day.origin.query }];
     day.items.forEach((it) => { if (it.type !== 'move') { const p = primary(it); if (p) stops.push(p); } });
-    stops.push({ name: day.destination.name, q: day.destination.q });
+    stops.push({ name: day.destination.name, q: day.destination.query });
     return stops.filter((s, i, a) => i === 0 || s.q !== a[i - 1].q);
   }
 
