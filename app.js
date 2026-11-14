@@ -11,7 +11,7 @@
   const endMin = (it) => toMin(it.start) + (Number(it.dur) || 0);
   const searchUrl = (q) => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
   const dirUrl = (origin, dest, waypoints) => {
-    let u = 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(origin) + '&destination=' + encodeURIComponent(dest) + '&travelmode=transit';
+    let u = 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(origin) + '&destination=' + encodeURIComponent(dest);
     if (waypoints.length) u += '&waypoints=' + waypoints.map(encodeURIComponent).join('%7C');
     return u;
   };
