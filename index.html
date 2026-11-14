@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>가족 여행 일정표</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-row">
+      <select id="tripSelect" aria-label="여행 선택"></select>
+      <div class="seg" role="group" aria-label="모드">
+        <button id="modeOrig" data-mode="orig">원본 계획</button>
+        <button id="modeMod" data-mode="mod">변경된 일정</button>
+      </div>
+      <button id="themeBtn" class="icon-btn" aria-label="테마 전환" title="다크/라이트 전환">🌓</button>
+    </div>
+    <div class="topbar-row tools" id="tools">
+      <label class="chk"><input type="checkbox" id="cascade" checked> 이후 일정 시간도 함께 밀기/당기기</label>
+      <span class="spacer"></span>
+      <button id="exportBtn" class="btn">변경사항 JSON 내보내기</button>
+      <button id="resetBtn" class="btn danger">원본으로 초기화</button>
+    </div>
+    <div id="modeNote" class="mode-note"></div>
+  </header>
+
+  <main id="app" class="wrap"><p class="loading">불러오는 중…</p></main>
+
+  <dialog id="dlg">
+    <form method="dialog" id="dlgForm"></form>
+  </dialog>
+
+  <footer class="foot">가족 여행 일정표 · GitHub Pages 정적 웹앱</footer>
+  <script src="app.js"></script>
+</body>
+</html>
