@@ -296,7 +296,7 @@
       if (token !== S.mapToken) return;
       alts.forEach((a, i) => {
         if (!altCoords[i]) return;
-        const icon = L.divIcon({ className: '', html: `<div class="pin pin-alt">${a.optNo}안</div>`, iconSize: [28, 20], iconAnchor: [14, 10] });
+        const icon = L.divIcon({ className: '', html: `<div class="pin pin-alt">${a.optNo}안</div>`, iconSize: [38, 22], iconAnchor: [19, 11] });
         const mAlt = L.marker(altCoords[i], { icon, title: `[${a.optNo}안] ${a.name}`, zIndexOffset: -100 })
           .addTo(map)
           .bindPopup(`<b>[${esc(a.meal)} · ${a.optNo}안] ${esc(a.name)}</b>${a.menu ? `<br><small>${esc(a.menu)}</small>` : ''}`);
