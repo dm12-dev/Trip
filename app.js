@@ -44,7 +44,7 @@
   }
 
   // ---------- 상태 ----------
-  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, day: 1, detailsOpen: false };
+  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, day: 1, stop: 0, mapMode: 'place', detailsOpen: false };
   const K = (suffix) => `ftrip:${S.tripId}:${suffix}`;
   const store = {
     get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
@@ -148,26 +148,35 @@
   }
 
   function routeStops(day) {
-    const stops = [{ name: day.origin.name, q: day.origin.query }];
-    day.items.forEach((it) => { if (it.type !== 'move') { const p = primary(it); if (p) stops.push(p); } });
-    stops.push({ name: day.destination.name, q: day.destination.query });
+    const stops = [{ name: day.origin.name, q: day.origin.query, t: '출발' }];
+    day.items.forEach((it) => { if (it.type !== 'move') { const p = primary(it); if (p) stops.push({ ...p, t: it.start, cat: it.cat }); } });
+    stops.push({ name: day.destination.name, q: day.destination.query, t: '도착' });
     return stops.filter((s, i, a) => i === 0 || s.q !== a[i - 1].q);
   }
 
   function renderDay(day) {
     const stops = routeStops(day);
-    const chips = stops.map((s, i) => `<span class="chip ${i === stops.length - 1 ? 'end' : ''}">${i + 1}. ${esc(s.name)}</span>`).join('<span class="arrow">→</span>');
+    const si = Math.max(0, Math.min(S.stop, stops.length - 1));
+    const cur = stops[si];
+    const list = stops.map((s, i) => `<button class="stop ${i === si ? 'on' : ''}" data-act="stop" data-i="${i}" aria-pressed="${i === si}"><span class="num">${i + 1}</span><span class="stop-t">${esc(s.t)}</span><span class="stop-n">${esc(s.name)}</span></button>`).join('');
     const mid = stops.slice(1, -1).map((s) => s.q).slice(0, 9);
     const url = dirUrl(stops[0].q, stops[stops.length - 1].q, mid);
-    // 구글 지도 임베드(키 불필요): 출발지 → 경유지들 → 도착지 경로를 지도에 바로 표시
-    const embed = 'https://maps.google.com/maps?output=embed&hl=ko&saddr=' + encodeURIComponent(stops[0].q)
-      + '&daddr=' + stops.slice(1).map((s) => encodeURIComponent(s.q)).join('+to:');
+    // 구글 지도 임베드(키 불필요): 선택한 장소 핀, 또는 직전 장소 → 선택 장소 경로
+    const routeMode = S.mapMode === 'route' && si > 0;
+    const embed = routeMode
+      ? 'https://maps.google.com/maps?output=embed&hl=ko&saddr=' + encodeURIComponent(stops[si - 1].q) + '&daddr=' + encodeURIComponent(cur.q)
+      : 'https://maps.google.com/maps?output=embed&hl=ko&z=15&q=' + encodeURIComponent(cur.q);
     const removed = S.mode === 'mod' ? origItemsOfDay(day.day).filter((o) => !day.items.some((i) => i.id === o.id)) : [];
     return `
       <section id="day${day.day}">
         <div class="day-head"><h2>DAY ${day.day}</h2><span>${esc(day.label)} · ${esc(day.title || '')}</span></div>
-        <div class="route" aria-label="일자별 경로">${chips}</div>
-        <div class="map-wrap"><iframe class="map" title="DAY ${day.day} 경로 지도" src="${embed}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe></div>
+        <div class="map-wrap"><iframe class="map" title="DAY ${day.day} 지도: ${esc(cur.name)}" src="${embed}" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe></div>
+        <div class="map-ctrl">
+          <button class="btn" data-act="prev" ${si === 0 ? 'disabled' : ''}>◀ 이전</button>
+          <button class="btn ${routeMode ? 'primary' : ''}" data-act="mapmode" ${si === 0 ? 'disabled' : ''}>${routeMode ? '🚗 이전 장소에서 경로' : '📍 장소 보기'}</button>
+          <button class="btn" data-act="next" ${si === stops.length - 1 ? 'disabled' : ''}>다음 ▶</button>
+        </div>
+        <div class="stops" aria-label="일자별 방문 순서">${list}</div>
         <a class="maplink route-btn" target="_blank" rel="noopener" href="${url}">🗺 Google 지도 앱/웹에서 크게 보기</a>
         <details class="details" ${S.detailsOpen ? 'open' : ''}>
           <summary>세부 일정 보기 (${day.items.length}개)</summary>
@@ -266,7 +275,11 @@
     const act = b.dataset.act, id = b.dataset.id;
     if (act === 'choose') { S.sel.choice[id] = +b.dataset.i; store.set(K('sel'), S.sel); render(); return; }
     if (act === 'dlgcancel') { $('#dlg').close(); return; }
-    if (act === 'day') { S.day = +b.dataset.day; render(); window.scrollTo({ top: 0 }); return; }
+    if (act === 'day') { S.day = +b.dataset.day; S.stop = 0; render(); window.scrollTo({ top: 0 }); return; }
+    if (act === 'stop') { S.stop = +b.dataset.i; render(); return; }
+    if (act === 'prev') { S.stop = Math.max(0, S.stop - 1); render(); return; }
+    if (act === 'next') { S.stop += 1; render(); return; }
+    if (act === 'mapmode') { S.mapMode = S.mapMode === 'route' ? 'place' : 'route'; render(); return; }
     if (S.mode !== 'mod') return;
     ensureMod();
     if (act === 'edit') { const r = findItem(id); openDialog('edit', r.day.day, r.idx); }
@@ -317,7 +330,7 @@
   async function loadTrip(id) {
     const entry = S.index.find((t) => t.id === id) || S.index[0];
     if (!entry) { $('#app').innerHTML = '<p class="loading">등록된 여행이 없습니다.</p>'; return; }
-    S.tripId = entry.id; S.day = 1;
+    S.tripId = entry.id; S.day = 1; S.stop = 0;
     $('#tripSelect').value = entry.id;
     try { S.orig = await getJson(`trips/${entry.file || entry.id + '.json'}`); }
     catch (e) { $('#app').innerHTML = `<p class="loading">여행 데이터를 불러올 수 없습니다: ${esc(e.message)}</p>`; return; }
