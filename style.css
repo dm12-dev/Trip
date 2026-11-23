@@ -165,3 +165,16 @@ dialog h3{margin:0 0 14px;font-size:20px;font-weight:500;text-align:center}
 .map-ctrl .btn:disabled{opacity:.4;cursor:default}
 .map{height:min(48vh,420px);min-height:300px}
 @media (min-width:600px){.stops{grid-template-columns:1fr 1fr 1fr}}
+
+/* Leaflet 지도 + 구간 정보 */
+.map{height:min(58vh,520px);min-height:340px;z-index:0}
+.pin{width:28px;height:28px;border-radius:50%;background:#0072de;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.pin.start{background:#12a150}.pin.end{background:#d93025}
+.map-status{font-size:13px;color:var(--warn);margin:0 4px 8px;min-height:0}
+.map-status:empty{display:none}
+.stops{display:block;margin:0 0 12px}
+.stop{display:flex;width:100%;align-items:center;gap:8px;text-align:left;border:0;background:var(--card);border-radius:var(--r-s);padding:10px 12px;cursor:pointer}
+.stop .stop-n{-webkit-line-clamp:2;flex:1}
+.leg{margin:2px 0 2px 24px;padding:4px 10px;border-left:3px solid var(--primary-dark);font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:2px;cursor:pointer}
+.leg .leg-i{color:var(--text)}
+.leg .leg-p{color:var(--primary-dark);font-weight:500}

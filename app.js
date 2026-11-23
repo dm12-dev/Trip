@@ -1,4 +1,4 @@
-﻿/* 가족 여행 일정표 - Vanilla JS, 백엔드 없음 */
+/* 가족 여행 일정표 - Vanilla JS, 백엔드 없음 */
 (() => {
   'use strict';
 
@@ -148,36 +148,130 @@
   }
 
   function routeStops(day) {
-    const stops = [{ name: day.origin.name, q: day.origin.query, t: '출발' }];
-    day.items.forEach((it) => { if (it.type !== 'move') { const p = primary(it); if (p) stops.push({ ...p, t: it.start, cat: it.cat }); } });
-    stops.push({ name: day.destination.name, q: day.destination.query, t: '도착' });
+    const stops = [{ name: day.origin.name, q: day.origin.query, t: '출발', idx: -1 }];
+    day.items.forEach((it, idx) => { if (it.type !== 'move') { const p = primary(it); if (p) stops.push({ ...p, t: it.start, cat: it.cat, idx }); } });
+    stops.push({ name: day.destination.name, q: day.destination.query, t: '도착', idx: day.items.length });
     return stops.filter((s, i, a) => i === 0 || s.q !== a[i - 1].q);
+  }
+
+  // ---------- 지도 (Leaflet + OpenStreetMap, 키 불필요) ----------
+  const ll = (p) => [p[0], p[1]];
+  const rad = (d) => d * Math.PI / 180;
+  const haversine = (a, b) => { const R = 6371; const dLa = rad(b[0] - a[0]), dLo = rad(b[1] - a[1]); const x = Math.sin(dLa / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
+  const fmtDur = (s) => { const m = Math.max(1, Math.round(s / 60)); return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`; };
+  const fmtDist = (m) => (m >= 1000 ? (m / 1000).toFixed(1) + 'km' : Math.round(m) + 'm');
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let PLACES = {};
+  const geoCache = store.get('ftrip:geo') || {};
+  async function geoFetch(url) { try { const r = await fetch(url); return r.ok ? r.json() : null; } catch { return null; } }
+  // 장소 → [lat, lng]. 우선순위: trips/places.json → 캐시 → 무료 지오코더(Photon, Nominatim)
+  async function geocode(s, anchor) {
+    if (PLACES[s.q]) return PLACES[s.q];
+    if (geoCache[s.q]) return geoCache[s.q];
+    const near = (c) => !anchor || haversine(anchor, c) < 80;
+    const tries = [s.q, s.name];
+    for (const q of tries) {
+      const bias = anchor ? `&lat=${anchor[0]}&lon=${anchor[1]}` : '';
+      const j = await geoFetch('https://photon.komoot.io/api/?limit=5&q=' + encodeURIComponent(q) + bias);
+      for (const f of (j && j.features) || []) { const c = [f.geometry.coordinates[1], f.geometry.coordinates[0]]; if (near(c)) { geoCache[s.q] = c; store.set('ftrip:geo', geoCache); return c; } }
+    }
+    for (const q of tries) {
+      await sleep(1100);
+      const j = await geoFetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=jp&q=' + encodeURIComponent(q));
+      for (const f of j || []) { const c = [+f.lat, +f.lon]; if (near(c)) { geoCache[s.q] = c; store.set('ftrip:geo', geoCache); return c; } }
+    }
+    return null;
+  }
+  async function resolveStops(stops) {
+    const out = new Array(stops.length).fill(null);
+    let anchor = null;
+    stops.forEach((s, i) => { if (!anchor && PLACES[s.q]) anchor = PLACES[s.q]; });
+    for (let i = 0; i < stops.length; i++) {
+      out[i] = await geocode(stops[i], anchor);
+      if (!anchor && out[i]) anchor = out[i];
+    }
+    return out;
+  }
+  function plannedMove(day, a, b) {
+    const ms = day.items.filter((it, i) => it.type === 'move' && i > a.idx && i < b.idx);
+    return ms.map((m) => `${m.mode || m.name} ${m.dur}분${m.cost ? ' · ' + m.cost : ''}`).join(' + ');
+  }
+  async function drawMap(day, stops, token) {
+    const el = $('#map');
+    if (!el) return;
+    if (S.map) { S.map.remove(); S.map = null; }
+    if (!window.L) { el.innerHTML = '<p class="loading">지도 라이브러리를 불러오지 못했습니다. 네트워크를 확인해 주세요.</p>'; return; }
+    const map = L.map(el, { scrollWheelZoom: false }).setView([35.0, 135.0], 5);
+    S.map = map; S.markers = []; S.legLines = [];
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+    const status = $('#mapStatus');
+    status.textContent = '장소 위치를 찾는 중…';
+    const coords = await resolveStops(stops);
+    if (token !== S.mapToken) return;
+    const pts = [];
+    stops.forEach((s, i) => {
+      if (!coords[i]) return;
+      pts.push(coords[i]);
+      const icon = L.divIcon({ className: '', html: `<div class="pin ${i === 0 ? 'start' : i === stops.length - 1 ? 'end' : ''}">${i + 1}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
+      const m = L.marker(coords[i], { icon, title: s.name }).addTo(map).bindPopup(`<b>${i + 1}. ${esc(s.name)}</b><br>${esc(s.t)}`);
+      S.markers[i] = m;
+    });
+    if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25)); 
+    const missing = stops.map((s, i) => (coords[i] ? null : `${i + 1}. ${s.name}`)).filter(Boolean);
+    status.textContent = missing.length ? `⚠ 위치를 찾지 못한 장소: ${missing.join(', ')} (trips/places.json에 좌표를 추가하면 표시됩니다)` : '';
+    // 구간별 이동 경로 (OSRM 공개 서버: 도로 기준, 실패 시 직선)
+    const idxs = stops.map((s, i) => i).filter((i) => coords[i]);
+    const legs = idxs.slice(0, -1).map((i, k) => [i, idxs[k + 1]]);
+    let osrm = null;
+    if (idxs.length > 1) {
+      const path = idxs.map((i) => coords[i][1] + ',' + coords[i][0]).join(';');
+      osrm = await geoFetch('https://router.project-osrm.org/route/v1/driving/' + path + '?overview=false&steps=true&geometries=geojson');
+      if (token !== S.mapToken) return;
+    }
+    legs.forEach(([a, b], k) => {
+      const leg = osrm && osrm.routes && osrm.routes[0] && osrm.routes[0].legs[k];
+      let line, info;
+      if (leg) {
+        const pts2 = [];
+        leg.steps.forEach((st) => st.geometry.coordinates.forEach((c) => pts2.push([c[1], c[0]])));
+        line = L.polyline(pts2, { color: '#0381fe', weight: 5, opacity: .8 });
+        info = `🚗 차량 약 ${fmtDur(leg.duration)} · ${fmtDist(leg.distance)}`;
+      } else {
+        const d = haversine(coords[a], coords[b]);
+        line = L.polyline([coords[a], coords[b]], { color: '#0381fe', weight: 4, opacity: .7, dashArray: '6 8' });
+        info = `직선 ${d.toFixed(1)}km · 도보 약 ${fmtDur(d * 1.3 / 4.5 * 3600)}`;
+      }
+      line.addTo(map);
+      S.legLines[a] = line;
+      const planned = plannedMove(day, stops[a], stops[b]);
+      const row = document.getElementById('leg-' + a);
+      if (row) { row.innerHTML = `<span class="leg-i">${info}</span>${planned ? `<span class="leg-p">계획: ${esc(planned)}</span>` : ''}`; row.dataset.ok = '1'; }
+    });
+    stops.forEach((s, i) => {
+      const row = document.getElementById('leg-' + i);
+      if (row && !row.dataset.ok) row.innerHTML = `<span class="leg-i">${(coords[i] && coords[i + 1]) ? '경로 계산 실패' : '위치 미확인'}</span>`;
+    });
   }
 
   function renderDay(day) {
     const stops = routeStops(day);
-    const si = Math.max(0, Math.min(S.stop, stops.length - 1));
-    const cur = stops[si];
-    const list = stops.map((s, i) => `<button class="stop ${i === si ? 'on' : ''}" data-act="stop" data-i="${i}" aria-pressed="${i === si}"><span class="num">${i + 1}</span><span class="stop-t">${esc(s.t)}</span><span class="stop-n">${esc(s.name)}</span></button>`).join('');
+    const rows = stops.map((s, i) => `
+      <button class="stop" data-act="stop" data-i="${i}"><span class="num">${i + 1}</span><span class="stop-t">${esc(s.t)}</span><span class="stop-n">${esc(s.name)}</span></button>
+      ${i < stops.length - 1 ? `<div class="leg" id="leg-${i}" data-act="leg" data-i="${i}"><span class="leg-i">경로 계산 중…</span></div>` : ''}`).join('');
     const mid = stops.slice(1, -1).map((s) => s.q).slice(0, 9);
     const url = dirUrl(stops[0].q, stops[stops.length - 1].q, mid);
-    // 구글 지도 임베드(키 불필요): 선택한 장소 핀, 또는 직전 장소 → 선택 장소 경로
-    const routeMode = S.mapMode === 'route' && si > 0;
-    const embed = routeMode
-      ? 'https://maps.google.com/maps?output=embed&hl=ko&saddr=' + encodeURIComponent(stops[si - 1].q) + '&daddr=' + encodeURIComponent(cur.q)
-      : 'https://maps.google.com/maps?output=embed&hl=ko&z=15&q=' + encodeURIComponent(cur.q);
+    S.curStops = stops;
+    S.mapToken = (S.mapToken || 0) + 1;
+    const token = S.mapToken;
+    setTimeout(() => drawMap(day, stops, token), 0);
     const removed = S.mode === 'mod' ? origItemsOfDay(day.day).filter((o) => !day.items.some((i) => i.id === o.id)) : [];
     return `
       <section id="day${day.day}">
         <div class="day-head"><h2>DAY ${day.day}</h2><span>${esc(day.label)} · ${esc(day.title || '')}</span></div>
-        <div class="map-wrap"><iframe class="map" title="DAY ${day.day} 지도: ${esc(cur.name)}" src="${embed}" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe></div>
-        <div class="map-ctrl">
-          <button class="btn" data-act="prev" ${si === 0 ? 'disabled' : ''}>◀ 이전</button>
-          <button class="btn ${routeMode ? 'primary' : ''}" data-act="mapmode" ${si === 0 ? 'disabled' : ''}>${routeMode ? '🚗 이전 장소에서 경로' : '📍 장소 보기'}</button>
-          <button class="btn" data-act="next" ${si === stops.length - 1 ? 'disabled' : ''}>다음 ▶</button>
-        </div>
-        <div class="stops" aria-label="일자별 방문 순서">${list}</div>
-        <a class="maplink route-btn" target="_blank" rel="noopener" href="${url}">🗺 Google 지도 앱/웹에서 크게 보기</a>
+        <div class="map-wrap"><div id="map" class="map" role="img" aria-label="DAY ${day.day} 전체 경로 지도"></div></div>
+        <div id="mapStatus" class="map-status"></div>
+        <div class="stops" aria-label="일자별 방문 순서">${rows}</div>
+        <a class="maplink route-btn" target="_blank" rel="noopener" href="${url}">🗺 Google 지도에서 열기 (대중교통 경로 확인)</a>
         <details class="details" ${S.detailsOpen ? 'open' : ''}>
           <summary>세부 일정 보기 (${day.items.length}개)</summary>
           ${S.mode === 'mod' ? `<div class="add-row"><button class="btn" data-act="add" data-day="${day.day}" data-after="-1">＋ 맨 앞에 일정 추가</button></div>` : ''}
@@ -276,10 +370,8 @@
     if (act === 'choose') { S.sel.choice[id] = +b.dataset.i; store.set(K('sel'), S.sel); render(); return; }
     if (act === 'dlgcancel') { $('#dlg').close(); return; }
     if (act === 'day') { S.day = +b.dataset.day; S.stop = 0; render(); window.scrollTo({ top: 0 }); return; }
-    if (act === 'stop') { S.stop = +b.dataset.i; render(); return; }
-    if (act === 'prev') { S.stop = Math.max(0, S.stop - 1); render(); return; }
-    if (act === 'next') { S.stop += 1; render(); return; }
-    if (act === 'mapmode') { S.mapMode = S.mapMode === 'route' ? 'place' : 'route'; render(); return; }
+    if (act === 'stop') { const m = S.markers && S.markers[+b.dataset.i]; if (m && S.map) { S.map.setView(m.getLatLng(), Math.max(S.map.getZoom(), 14)); m.openPopup(); document.getElementById('map').scrollIntoView({ block: 'center', behavior: 'smooth' }); } return; }
+    if (act === 'leg') { const l = S.legLines && S.legLines[+b.dataset.i]; if (l && S.map) { S.map.fitBounds(l.getBounds().pad(0.3)); document.getElementById('map').scrollIntoView({ block: 'center', behavior: 'smooth' }); } return; }
     if (S.mode !== 'mod') return;
     ensureMod();
     if (act === 'edit') { const r = findItem(id); openDialog('edit', r.day.day, r.idx); }
@@ -348,6 +440,7 @@
     S.mode = localStorage.getItem('ftrip:mode') === 'mod' ? 'mod' : 'orig';
     try { S.index = await getJson('trips/index.json'); }
     catch (e) { $('#app').innerHTML = `<p class="loading">trips/index.json 로드 실패 (${esc(e.message)}).<br>로컬에서는 간단한 웹서버로 열어주세요.</p>`; return; }
+    try { PLACES = await getJson('trips/places.json'); } catch { PLACES = {}; }
     S.index.sort((a, b) => (a.start < b.start ? 1 : -1));
     $('#tripSelect').innerHTML = S.index.map((t) => `<option value="${esc(t.id)}">${esc(t.title)} · ${esc(t.dates || '')} (${statusOf(t)})</option>`).join('');
     loadTrip(tripFromHash());
