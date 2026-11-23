@@ -216,7 +216,7 @@
     if (!el) return;
     if (S.map) { S.map.remove(); S.map = null; }
     if (!window.L) { el.innerHTML = '<p class="loading">지도 라이브러리를 불러오지 못했습니다. 네트워크를 확인해 주세요.</p>'; return; }
-    const map = L.map(el, { scrollWheelZoom: false }).setView([35.0, 135.0], 5);
+    const map = L.map(el, { scrollWheelZoom: true }).setView([35.0, 135.0], 5);
     S.map = map; S.markers = []; S.legLines = []; S.baseLayer = null;
     addBaseLayer(map);
     const status = $('#mapStatus');
@@ -287,7 +287,7 @@
     if (!el) return;
     if (S.map) { S.map.remove(); S.map = null; }
     if (!window.L) { el.innerHTML = '<p class="loading">지도 라이브러리를 불러오지 못했습니다. 네트워크를 확인해 주세요.</p>'; return; }
-    const map = L.map(el, { scrollWheelZoom: false }).setView([35.0, 135.0], 5);
+    const map = L.map(el, { scrollWheelZoom: true }).setView([35.0, 135.0], 5);
     S.map = map; S.dayLayers = {}; S.baseLayer = null;
     addBaseLayer(map);
     const status = $('#mapStatus');
