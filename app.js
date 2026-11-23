@@ -380,43 +380,46 @@
   const origItemsOfDay = (n) => S.orig.days.find((d) => d.day === n).items;
 
   function renderFoodView(t) {
-    const sections = t.days.map((d) => {
-      const meals = d.items.filter((it) => (it.options && it.options.length) || it.cat === '식사');
-      if (!meals.length) return '';
-      return `
-        <section>
-          <div class="day-head"><h2>DAY ${d.day}</h2><span>${esc(d.label)} · ${esc(d.title || '')}</span></div>
-          ${meals.map((it) => {
-            const title = it.optLabel ? `${it.name} (${it.optLabel})` : it.name;
-            if (it.options && it.options.length) {
-              const c = choiceOf(it);
+    const rows = [];
+    t.days.forEach((d) => {
+      d.items.filter((it) => (it.options && it.options.length) || it.cat === '식사').forEach((it) => {
+        const mealName = it.optLabel ? `${it.optLabel}` : it.name;
+        const c = choiceOf(it);
+        const cells = (it.options && it.options.length)
+          ? [0, 1, 2].map((i) => {
+              const op = it.options[i];
+              if (!op) return '<td><span class="muted">-</span></td>';
+              const on = i === c;
               return `
-                <article class="card">
-                  <div class="item-top"><span class="time">${esc(timeText(it))}</span><span class="tag 식사">${esc(title)}</span></div>
-                  <div class="food-list">
-                    ${it.options.map((op, i) => `
-                      <div class="food-opt ${i === c ? 'on' : ''}">
-                        <div class="food-opt-head">
-                          <button class="btn ${i === c ? 'primary' : ''}" data-act="choose" data-id="${it.id}" data-i="${i}">${i === c ? '✓ ' : ''}${i + 1}안</button>
-                          <strong class="food-name">${esc(op.name)}</strong>
-                          <a class="maplink alt food-map" target="_blank" rel="noopener" href="${searchUrl(op.q)}">📍 지도</a>
-                        </div>
-                        ${op.menu ? `<div class="food-menu">🍴 주요 메뉴: ${esc(op.menu)}</div>` : ''}
-                      </div>`).join('')}
-                  </div>
-                </article>`;
-            }
-            return `
-              <article class="card">
-                <div class="item-top"><span class="time">${esc(timeText(it))}</span><span class="tag 식사">식사</span></div>
-                <h3>${esc(title)}</h3>
-                ${it.memo ? `<div class="memo">${esc(it.memo)}</div>` : ''}
-                ${it.q ? `<a class="maplink" target="_blank" rel="noopener" href="${searchUrl(it.q)}">📍 구글 지도</a>` : ''}
-              </article>`;
-          }).join('')}
-        </section>`;
-    }).join('');
-    return sections || '<p class="loading">등록된 식사 일정이 없습니다.</p>';
+                <td class="cell-opt ${on ? 'on' : ''}">
+                  <button class="cell-pick" data-act="choose" data-id="${it.id}" data-i="${i}" aria-pressed="${on}">
+                    <span class="cell-title">${on ? '✓ ' : ''}${esc(op.name)}</span>
+                    ${op.menu ? `<span class="cell-sub">${esc(op.menu)}</span>` : ''}
+                  </button>
+                  <a class="cell-map" target="_blank" rel="noopener" href="${searchUrl(op.q)}">📍 지도</a>
+                </td>`;
+            }).join('')
+          : `<td colspan="3"><strong>${esc(it.name)}</strong>${it.memo ? `<div class="cell-sub">${esc(it.memo)}</div>` : ''}${it.q ? ` <a class="cell-map" target="_blank" rel="noopener" href="${searchUrl(it.q)}">📍 지도</a>` : ''}</td>`;
+        rows.push(`
+          <tr>
+            <th scope="row">
+              <div class="t-day">DAY ${d.day}</div>
+              <div class="t-meal">${esc(mealName)}</div>
+              <div class="t-time">${esc(it.start)}</div>
+            </th>
+            ${cells}
+          </tr>`);
+      });
+    });
+    if (!rows.length) return '<p class="loading">등록된 식사 일정이 없습니다.</p>';
+    return `
+      <div class="table-hint">식당을 눌러 1·2·3안을 선택할 수 있습니다 (지도 경로와 연동)</div>
+      <div class="card table-wrap">
+        <table class="tbl tbl-food">
+          <thead><tr><th>일자/식사</th><th>1안</th><th>2안</th><th>3안</th></tr></thead>
+          <tbody>${rows.join('')}</tbody>
+        </table>
+      </div>`;
   }
 
   function renderSpotsView(t) {
@@ -426,25 +429,28 @@
         <button class="btn ${!includeShop ? 'primary' : ''}" data-act="spotcat" data-cat="관광">🎡 관광지만</button>
         <button class="btn ${includeShop ? 'primary' : ''}" data-act="spotcat" data-cat="all">🛍 쇼핑 포함 전체</button>
       </div>`;
-    const sections = t.days.map((d) => {
-      const spots = d.items.filter((it) => it.type !== 'move' && (includeShop ? (it.cat === '관광' || it.cat === '쇼핑') : it.cat === '관광'));
-      if (!spots.length) return '';
-      return `
-        <section>
-          <div class="day-head"><h2>DAY ${d.day}</h2><span>${esc(d.label)} · ${esc(d.title || '')}</span></div>
-          ${spots.map((it) => `
-            <article class="card">
-              <div class="item-top"><span class="time">${esc(timeText(it))}</span><span class="tag ${esc(it.cat)}">${esc(it.cat)}</span></div>
-              <h3>${esc(it.name)}</h3>
-              ${it.memo ? `<div class="memo">${esc(it.memo)}</div>` : ''}
-              <div class="spot-links">
-                ${it.q ? `<a class="maplink" target="_blank" rel="noopener" href="${searchUrl(it.q)}">📍 구글 지도</a>` : ''}
-                ${it.rain ? `<a class="maplink alt" target="_blank" rel="noopener" href="${searchUrl(it.rain.q)}">☔ 우천: ${esc(it.rain.name)}</a>` : ''}
-              </div>
-            </article>`).join('')}
-        </section>`;
-    }).join('');
-    return filterBar + (sections || '<p class="loading">해당하는 장소가 없습니다.</p>');
+    const rows = [];
+    t.days.forEach((d) => {
+      d.items.filter((it) => it.type !== 'move' && (includeShop ? (it.cat === '관광' || it.cat === '쇼핑') : it.cat === '관광')).forEach((it) => {
+        rows.push(`
+          <tr>
+            <th scope="row">
+              <div class="t-day">DAY ${d.day}</div>
+              <div class="t-time">${esc(timeText(it))}</div>
+            </th>
+            <td>
+              <span class="tag ${esc(it.cat)}">${esc(it.cat)}</span>
+              <div class="cell-title" style="margin-top:4px">${esc(it.name)}</div>
+              ${it.q ? `<a class="cell-map" target="_blank" rel="noopener" href="${searchUrl(it.q)}">📍 지도</a>` : ''}
+            </td>
+            <td><div class="cell-memo">${esc(it.memo || '-')}</div></td>
+            <td>${it.rain ? `<div class="cell-rain">☔ ${esc(it.rain.name)}</div><a class="cell-map" target="_blank" rel="noopener" href="${searchUrl(it.rain.q)}">📍 대체 지도</a>` : '<span class="muted">-</span>'}</td>
+          </tr>`);
+      });
+    });
+    return filterBar + (rows.length
+      ? `<div class="card table-wrap"><table class="tbl tbl-spots"><thead><tr><th>일자/시간</th><th>장소</th><th>주요 내용</th><th>우천 대체</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`
+      : '<p class="loading">해당하는 장소가 없습니다.</p>');
   }
 
   function render() {

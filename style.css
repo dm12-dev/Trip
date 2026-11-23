@@ -213,3 +213,28 @@ dialog h3{margin:0 0 14px;font-size:20px;font-weight:500;text-align:center}
 .all-day-head span{color:var(--muted);flex:1;min-width:100px}
 .all-day-go{padding:5px 10px;font-size:12px}
 .all-day-route{font-size:13px;color:var(--muted);line-height:1.5}
+
+/* 식당·관광지 일자별 표 */
+.table-hint{font-size:12px;color:var(--muted);margin:0 4px 8px}
+.table-wrap{padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+.tbl th,.tbl td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}
+.tbl thead th{background:var(--bg);color:var(--muted);font-weight:500;font-size:12px;white-space:nowrap}
+.tbl tbody th{position:sticky;left:0;z-index:1;background:var(--card);border-right:1px solid var(--line);min-width:84px;white-space:nowrap;font-weight:400}
+.tbl thead th:first-child{position:sticky;left:0;z-index:2}
+.tbl tbody tr:last-child th,.tbl tbody tr:last-child td{border-bottom:0}
+.t-day{font-weight:700;font-size:12px;color:var(--primary-dark)}
+.t-meal{font-weight:500;font-size:13px;margin-top:2px}
+.t-time{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:2px}
+.cell-opt{transition:background .15s var(--ease)}
+.cell-opt.on{background:var(--accent-soft)}
+.cell-pick{display:block;width:100%;border:0;background:transparent;padding:0;text-align:left;cursor:pointer}
+.cell-title{display:block;font-weight:500;font-size:13px;line-height:1.35;color:var(--text)}
+.cell-opt.on .cell-title{color:var(--primary-dark);font-weight:700}
+.cell-sub{display:block;font-size:12px;color:var(--muted);margin-top:3px;line-height:1.35}
+.cell-map{display:inline-block;margin-top:6px;font-size:11px;color:var(--primary-dark);text-decoration:none;background:var(--gray-btn);padding:3px 8px;border-radius:10px;font-weight:500}
+.cell-opt.on .cell-map{background:var(--card)}
+.cell-memo{font-size:12px;color:var(--muted);line-height:1.4;min-width:140px}
+.cell-rain{font-size:12px;font-weight:500;line-height:1.35}
+.muted{color:var(--muted)}
+.spot-filter{margin-bottom:10px}
