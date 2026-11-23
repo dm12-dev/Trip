@@ -439,9 +439,11 @@
               <div class="t-time">${esc(timeText(it))}</div>
             </th>
             <td>
-              <span class="tag ${esc(it.cat)}">${esc(it.cat)}</span>
-              <div class="cell-title" style="margin-top:4px">${esc(it.name)}</div>
-              ${it.q ? `<a class="cell-map" target="_blank" rel="noopener" href="${searchUrl(it.q)}">📍 지도</a>` : ''}
+              <div class="spot-head">
+                <span class="tag ${esc(it.cat)}">${esc(it.cat)}</span>
+                ${it.q ? `<a class="cell-map" target="_blank" rel="noopener" href="${searchUrl(it.q)}">📍 지도</a>` : ''}
+              </div>
+              <div class="cell-title">${esc(it.name)}</div>
             </td>
             <td><div class="cell-memo">${esc(it.memo || '-')}</div></td>
             <td>${it.rain ? `<div class="cell-rain">☔ ${esc(it.rain.name)}</div><a class="cell-map" target="_blank" rel="noopener" href="${searchUrl(it.rain.q)}">📍 대체 지도</a>` : '<span class="muted">-</span>'}</td>
