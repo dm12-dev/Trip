@@ -224,12 +224,25 @@
     const coords = await resolveStops(stops);
     if (token !== S.mapToken) return;
     const pts = [];
+    const coordCount = {};
+    coords.forEach((c) => { if (c) { const k = c[0].toFixed(4) + ',' + c[1].toFixed(4); coordCount[k] = (coordCount[k] || 0) + 1; } });
+    const coordSeen = {};
     stops.forEach((s, i) => {
       if (!coords[i]) return;
       pts.push(coords[i]);
-      const icon = L.divIcon({ className: '', html: `<div class="pin ${i === 0 ? 'start' : i === stops.length - 1 ? 'end' : ''}">${i + 1}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
-      const m = L.marker(coords[i], { icon, title: s.name }).addTo(map).bindPopup(`<b>${i + 1}. ${esc(s.name)}</b><br>${esc(s.t)}`);
-      if (S.showLabels) m.bindTooltip(`${i + 1}. ${s.name}`, { permanent: true, direction: 'right', offset: [10, 0], className: 'pin-lbl' });
+      const k = coords[i][0].toFixed(4) + ',' + coords[i][1].toFixed(4);
+      const total = coordCount[k] || 1;
+      const seq = coordSeen[k] || 0;
+      coordSeen[k] = seq + 1;
+      // 같은 좌표에 핀이 겹치면(예: 1번 출발 숙소 = 마지막 도착 숙소) 픽셀 단위로 나란히 배치
+      const anchor = total > 1 ? (seq === 0 ? [28, 14] : seq === 1 ? [0, 14] : [14, 28]) : [14, 14];
+      const icon = L.divIcon({ className: '', html: `<div class="pin ${i === 0 ? 'start' : i === stops.length - 1 ? 'end' : ''}">${i + 1}</div>`, iconSize: [28, 28], iconAnchor: anchor });
+      const m = L.marker(coords[i], { icon, title: s.name, zIndexOffset: i === 0 ? 500 : 0 }).addTo(map).bindPopup(`<b>${i + 1}. ${esc(s.name)}</b><br>${esc(s.t)}`);
+      if (S.showLabels) {
+        const dir = (total > 1 && seq === 0) ? 'left' : 'right';
+        const off = dir === 'left' ? [-18, 0] : (total > 1 ? [18, 0] : [10, 0]);
+        m.bindTooltip(`${i + 1}. ${s.name}`, { permanent: true, direction: dir, offset: off, className: 'pin-lbl' });
+      }
       S.markers[i] = m;
     });
     if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25)); 
@@ -282,6 +295,9 @@
 
     const allPts = [];
     const missingAll = [];
+    const allSeen = {};
+    const allLblSeen = {};
+    const allOffsets = [[12, 12], [26, 12], [-2, 12], [12, 26], [12, -2], [24, 24], [0, 24], [24, 0]];
     for (let di = 0; di < t.days.length; di++) {
       const day = t.days[di];
       const color = DAY_COLORS[(day.day - 1) % DAY_COLORS.length];
@@ -295,16 +311,23 @@
       stops.forEach((s, i) => {
         if (!coords[i]) { missingAll.push(`D${day.day} ${s.name}`); return; }
         allPts.push(coords[i]);
+        const k = coords[i][0].toFixed(4) + ',' + coords[i][1].toFixed(4);
+        const seq = allSeen[k] || 0;
+        allSeen[k] = seq + 1;
+        const anchor = allOffsets[seq % allOffsets.length];
         const icon = L.divIcon({
           className: '',
           html: `<div class="pin pin-all" style="background:${color}">${i + 1}</div>`,
           iconSize: [24, 24],
-          iconAnchor: [12, 12],
+          iconAnchor: anchor,
         });
         const mAll = L.marker(coords[i], { icon, title: `[DAY ${day.day}] ${s.name}` })
           .bindPopup(`<b style="color:${color}">DAY ${day.day} · ${i + 1}. ${esc(s.name)}</b><br>${esc(s.t)}`)
           .addTo(lg);
-        if (S.showLabels) mAll.bindTooltip(`D${day.day}-${i + 1} ${s.name}`, { permanent: true, direction: 'right', offset: [8, 0], className: 'pin-lbl' });
+        if (S.showLabels && !allLblSeen[s.q]) {
+          allLblSeen[s.q] = true;
+          mAll.bindTooltip(`D${day.day}-${i + 1} ${s.name}`, { permanent: true, direction: 'right', offset: [8, 0], className: 'pin-lbl' });
+        }
       });
 
       const idxs = stops.map((s, i) => i).filter((i) => coords[i]);
