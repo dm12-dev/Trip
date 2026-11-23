@@ -38,21 +38,26 @@ button,input,select,textarea{font:inherit;color:inherit}
 .icon-btn{border:0;background:var(--gray-btn);border-radius:var(--r-btn);padding:8px 14px;font-size:16px;cursor:pointer}
 
 /* 뷰잉 영역: 넓은 마진, 중앙 정렬, 비인터랙티브 */
-.viewing{text-align:center;padding:36px 0 22px}
-.viewing h1{margin:0 0 8px;font-weight:300;font-size:clamp(28px,8vw,40px);line-height:1.2;letter-spacing:-.5px}
-.viewing .sub{color:var(--muted);font-size:16px}
+.viewing{text-align:center;padding:18px 0 12px}
+.viewing h1{margin:0 0 6px;font-weight:300;font-size:clamp(24px,7vw,36px);line-height:1.2;letter-spacing:-.5px}
+.viewing .sub{color:var(--muted);font-size:15px}
 
 /* 카드 */
 .card{background:var(--card);border-radius:var(--r-m);padding:18px;margin-bottom:var(--gap);transition:background .2s var(--ease)}
-.info-card{border-radius:var(--r-l);padding:20px;margin-bottom:16px}
-.info{display:grid;gap:14px}
+.info-card{border-radius:var(--r-l);padding:0;margin-bottom:12px;overflow:hidden}
+.info-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;cursor:pointer;list-style:none;font-size:14px;font-weight:500}
+.info-summary::-webkit-details-marker{display:none}
+.info-summary-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.info-summary .chev::after{content:'▾';color:var(--muted);font-size:14px;display:inline-block;transition:transform .2s var(--ease)}
+.info-details[open] .info-summary .chev::after{transform:rotate(180deg)}
+.info{display:grid;gap:14px;padding:14px 18px 18px;border-top:1px solid var(--line)}
 .info-row{display:flex;gap:12px;align-items:flex-start;font-size:15px}
 .info-row b{min-width:76px;color:var(--muted);font-weight:500;font-size:14px}
 .info-row small{color:var(--muted);font-size:13px}
 .daynav{display:flex;gap:var(--gap);overflow-x:auto;margin:0 -24px 8px;padding:4px 24px;scrollbar-width:none}
 .daynav::-webkit-scrollbar{display:none}
 .daynav a{flex:none;background:var(--gray-btn);color:var(--gray-on);border-radius:var(--r-btn);padding:8px 16px;text-decoration:none;font-size:14px;font-weight:500}
-.day-head{display:flex;align-items:baseline;gap:10px;margin:30px 4px 10px}
+.day-head{display:flex;align-items:baseline;gap:10px;margin:14px 4px 10px}
 .day-head h2{margin:0;font-size:20px;font-weight:500}
 .day-head span{color:var(--muted);font-size:14px}
 .route{display:flex;align-items:center;gap:6px;overflow-x:auto;padding:6px 0 12px;scrollbar-width:none}

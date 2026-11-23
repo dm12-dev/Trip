@@ -44,7 +44,7 @@
   }
 
   // ---------- 상태 ----------
-  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, day: 1, stop: 0, mapMode: 'place', detailsOpen: false };
+  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, day: 1, stop: 0, mapMode: 'place', infoOpen: false, detailsOpen: false };
   const K = (suffix) => `ftrip:${S.tripId}:${suffix}`;
   const store = {
     get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
@@ -290,14 +290,18 @@
         <h1>${esc(t.title)}</h1>
         <div class="sub">${esc(t.subtitle || '')}</div>
       </section>
-      <div class="card info-card">
+      <details class="card info-card info-details" ${S.infoOpen ? 'open' : ''}>
+        <summary class="info-summary">
+          <span class="info-summary-text">✈ 항공 · 🏨 ${esc(lod.name)} · 👨‍👩‍👧‍👦 ${esc(t.party)}</span>
+          <span class="chev" aria-hidden="true"></span>
+        </summary>
         <div class="info">
           ${(t.flights || []).map((f) => `<div class="info-row"><b>✈ ${esc(f.label)}</b><span>${esc(f.text)}</span></div>`).join('')}
           <div class="info-row"><b>🏨 숙소</b><span>${esc(lod.name)}<br><small>${esc(lod.note || '')}</small><br><br><a class="maplink" style="margin-top:8px" target="_blank" rel="noopener" href="${searchUrl(lod.query)}">📍 구글 지도</a></span></div>
           <div class="info-row"><b>👨‍👩‍👧‍👦 인원</b><span>${esc(t.party)}</span></div>
           <div class="info-row"><b>💴 예산</b><span>${esc(t.budget)}</span></div>
         </div>
-      </div>
+      </details>
       <nav class="daynav">${t.days.map((d) => `<button class="${d.day === S.day ? 'on' : ''}" data-act="day" data-day="${d.day}">DAY ${d.day} · ${esc(d.label)}</button>`).join('')}</nav>
       ${renderDay(t.days.find((d) => d.day === S.day) || t.days[0])}`;
     $('#modeOrig').classList.toggle('on', S.mode === 'orig');
@@ -369,7 +373,12 @@
     const act = b.dataset.act, id = b.dataset.id;
     if (act === 'choose') { S.sel.choice[id] = +b.dataset.i; store.set(K('sel'), S.sel); render(); return; }
     if (act === 'dlgcancel') { $('#dlg').close(); return; }
-    if (act === 'day') { S.day = +b.dataset.day; S.stop = 0; render(); window.scrollTo({ top: 0 }); return; }
+    if (act === 'day') {
+      S.day = +b.dataset.day; S.stop = 0; render();
+      const nav = $('.daynav'), bar = $('.appbar');
+      if (nav) window.scrollTo({ top: Math.max(0, nav.offsetTop - (bar ? bar.offsetHeight : 0) - 4) });
+      return;
+    }
     if (act === 'stop') { const m = S.markers && S.markers[+b.dataset.i]; if (m && S.map) { S.map.setView(m.getLatLng(), Math.max(S.map.getZoom(), 14)); m.openPopup(); document.getElementById('map').scrollIntoView({ block: 'center', behavior: 'smooth' }); } return; }
     if (act === 'leg') { const l = S.legLines && S.legLines[+b.dataset.i]; if (l && S.map) { S.map.fitBounds(l.getBounds().pad(0.3)); document.getElementById('map').scrollIntoView({ block: 'center', behavior: 'smooth' }); } return; }
     if (S.mode !== 'mod') return;
@@ -389,7 +398,12 @@
     if (t.dataset && t.dataset.act === 'rain') { S.sel.rain[t.dataset.id] = t.checked; store.set(K('sel'), S.sel); render(); }
     if (t.id === 'cascade') localStorage.setItem('ftrip:cascade', t.checked ? '1' : '0');
   });
-  document.addEventListener('toggle', (e) => { if (e.target.classList && e.target.classList.contains('details')) S.detailsOpen = e.target.open; }, true);
+  document.addEventListener('toggle', (e) => {
+    const cl = e.target.classList;
+    if (!cl) return;
+    if (cl.contains('details')) S.detailsOpen = e.target.open;
+    if (cl.contains('info-details')) S.infoOpen = e.target.open;
+  }, true);
   $('#modeOrig').onclick = () => setMode('orig');
   $('#modeMod').onclick = () => setMode('mod');
   function setMode(m) { S.mode = m; localStorage.setItem('ftrip:mode', m); render(); }
