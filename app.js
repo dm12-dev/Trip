@@ -44,7 +44,7 @@
   }
 
   // ---------- 상태 ----------
-  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, tab: 'day', spotCat: '관광', day: 'all', stop: 0, mapLang: localStorage.getItem('ftrip:mapLang') || 'en', showLabels: localStorage.getItem('ftrip:mapLbl') !== '0', infoOpen: false, detailsOpen: false, hiddenDays: {} };
+  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, tab: 'day', spotCat: 'all', day: 'all', stop: 0, mapLang: localStorage.getItem('ftrip:mapLang') || 'en', showLabels: localStorage.getItem('ftrip:mapLbl') !== '0', infoOpen: false, detailsOpen: false, hiddenDays: {} };
   const DAY_COLORS = ['#0381fe', '#12a150', '#e65100', '#8e24aa', '#d81b60', '#00897b'];
   function addBaseLayer(map) {
     if (S.baseLayer) map.removeLayer(S.baseLayer);
@@ -466,8 +466,8 @@
     const includeShop = S.spotCat === 'all';
     const filterBar = `
       <div class="spot-filter" role="group" aria-label="장소 분류">
-        <button class="btn ${!includeShop ? 'primary' : ''}" data-act="spotcat" data-cat="관광">🎡 관광지만</button>
         <button class="btn ${includeShop ? 'primary' : ''}" data-act="spotcat" data-cat="all">🛍 쇼핑 포함 전체</button>
+        <button class="btn ${!includeShop ? 'primary' : ''}" data-act="spotcat" data-cat="관광">🎡 관광지만</button>
       </div>`;
     const rows = [];
     t.days.forEach((d) => {
