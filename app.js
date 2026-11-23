@@ -44,7 +44,7 @@
   }
 
   // ---------- 상태 ----------
-  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null };
+  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, day: 1, detailsOpen: false };
   const K = (suffix) => `ftrip:${S.tripId}:${suffix}`;
   const store = {
     get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
@@ -156,19 +156,25 @@
 
   function renderDay(day) {
     const stops = routeStops(day);
-    const chips = stops.map((s, i) => `<span class="chip ${i === stops.length - 1 ? 'end' : ''}">${esc(s.name)}</span>`).join('<span class="arrow">→</span>');
+    const chips = stops.map((s, i) => `<span class="chip ${i === stops.length - 1 ? 'end' : ''}">${i + 1}. ${esc(s.name)}</span>`).join('<span class="arrow">→</span>');
     const mid = stops.slice(1, -1).map((s) => s.q).slice(0, 9);
     const url = dirUrl(stops[0].q, stops[stops.length - 1].q, mid);
+    // 구글 지도 임베드(키 불필요): 출발지 → 경유지들 → 도착지 경로를 지도에 바로 표시
+    const embed = 'https://maps.google.com/maps?output=embed&hl=ko&saddr=' + encodeURIComponent(stops[0].q)
+      + '&daddr=' + stops.slice(1).map((s) => encodeURIComponent(s.q)).join('+to:');
     const removed = S.mode === 'mod' ? origItemsOfDay(day.day).filter((o) => !day.items.some((i) => i.id === o.id)) : [];
     return `
       <section id="day${day.day}">
         <div class="day-head"><h2>DAY ${day.day}</h2><span>${esc(day.label)} · ${esc(day.title || '')}</span></div>
         <div class="route" aria-label="일자별 경로">${chips}</div>
-        <a class="maplink route-btn" target="_blank" rel="noopener" href="${url}">🗺 Google 지도에서 해당 일자 전체 경로 보기</a>
-        <div style="height:10px"></div>
-        ${S.mode === 'mod' ? `<div class="add-row"><button class="btn" data-act="add" data-day="${day.day}" data-after="-1">＋ 맨 앞에 일정 추가</button></div>` : ''}
-        ${day.items.map((it, i) => renderItem(it, day, i, day.items)).join('')}
-        ${removed.map((o) => `<article class="card removed"><div class="item-top"><span class="time">${esc(timeText(o))}</span><span class="badge">삭제됨</span></div><h3>${esc(o.name)}</h3></article>`).join('')}
+        <div class="map-wrap"><iframe class="map" title="DAY ${day.day} 경로 지도" src="${embed}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe></div>
+        <a class="maplink route-btn" target="_blank" rel="noopener" href="${url}">🗺 Google 지도 앱/웹에서 크게 보기</a>
+        <details class="details" ${S.detailsOpen ? 'open' : ''}>
+          <summary>세부 일정 보기 (${day.items.length}개)</summary>
+          ${S.mode === 'mod' ? `<div class="add-row"><button class="btn" data-act="add" data-day="${day.day}" data-after="-1">＋ 맨 앞에 일정 추가</button></div>` : ''}
+          ${day.items.map((it, i) => renderItem(it, day, i, day.items)).join('')}
+          ${removed.map((o) => `<article class="card removed"><div class="item-top"><span class="time">${esc(timeText(o))}</span><span class="badge">삭제됨</span></div><h3>${esc(o.name)}</h3></article>`).join('')}
+        </details>
       </section>`;
   }
   const origItemsOfDay = (n) => S.orig.days.find((d) => d.day === n).items;
@@ -189,8 +195,8 @@
           <div class="info-row"><b>💴 예산</b><span>${esc(t.budget)}</span></div>
         </div>
       </div>
-      <nav class="daynav">${t.days.map((d) => `<a href="#day${d.day}">DAY ${d.day} · ${esc(d.label)}</a>`).join('')}</nav>
-      ${t.days.map(renderDay).join('')}`;
+      <nav class="daynav">${t.days.map((d) => `<button class="${d.day === S.day ? 'on' : ''}" data-act="day" data-day="${d.day}">DAY ${d.day} · ${esc(d.label)}</button>`).join('')}</nav>
+      ${renderDay(t.days.find((d) => d.day === S.day) || t.days[0])}`;
     $('#modeOrig').classList.toggle('on', S.mode === 'orig');
     $('#modeMod').classList.toggle('on', S.mode === 'mod');
     $('#tools').classList.toggle('hidden', S.mode !== 'mod');
@@ -260,6 +266,7 @@
     const act = b.dataset.act, id = b.dataset.id;
     if (act === 'choose') { S.sel.choice[id] = +b.dataset.i; store.set(K('sel'), S.sel); render(); return; }
     if (act === 'dlgcancel') { $('#dlg').close(); return; }
+    if (act === 'day') { S.day = +b.dataset.day; render(); window.scrollTo({ top: 0 }); return; }
     if (S.mode !== 'mod') return;
     ensureMod();
     if (act === 'edit') { const r = findItem(id); openDialog('edit', r.day.day, r.idx); }
@@ -277,6 +284,7 @@
     if (t.dataset && t.dataset.act === 'rain') { S.sel.rain[t.dataset.id] = t.checked; store.set(K('sel'), S.sel); render(); }
     if (t.id === 'cascade') localStorage.setItem('ftrip:cascade', t.checked ? '1' : '0');
   });
+  document.addEventListener('toggle', (e) => { if (e.target.classList && e.target.classList.contains('details')) S.detailsOpen = e.target.open; }, true);
   $('#modeOrig').onclick = () => setMode('orig');
   $('#modeMod').onclick = () => setMode('mod');
   function setMode(m) { S.mode = m; localStorage.setItem('ftrip:mode', m); render(); }
@@ -309,7 +317,7 @@
   async function loadTrip(id) {
     const entry = S.index.find((t) => t.id === id) || S.index[0];
     if (!entry) { $('#app').innerHTML = '<p class="loading">등록된 여행이 없습니다.</p>'; return; }
-    S.tripId = entry.id;
+    S.tripId = entry.id; S.day = 1;
     $('#tripSelect').value = entry.id;
     try { S.orig = await getJson(`trips/${entry.file || entry.id + '.json'}`); }
     catch (e) { $('#app').innerHTML = `<p class="loading">여행 데이터를 불러올 수 없습니다: ${esc(e.message)}</p>`; return; }

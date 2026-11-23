@@ -140,3 +140,13 @@ dialog h3{margin:0 0 14px;font-size:20px;font-weight:500;text-align:center}
 .dlg-actions .btn{flex:1}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* 일자 탭 / 지도 / 세부 일정 접기 */
+.daynav button{flex:none;border:0;background:var(--gray-btn);color:var(--gray-on);border-radius:var(--r-btn);padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer;transition:background .2s var(--ease)}
+.daynav button.on{background:var(--primary-dark);color:var(--on-primary)}
+.map-wrap{border-radius:var(--r-l);overflow:hidden;background:var(--card);margin-bottom:var(--gap)}
+.map{display:block;width:100%;height:min(62vh,520px);min-height:340px;border:0}
+.details{margin-top:14px}
+.details>summary{cursor:pointer;list-style:none;background:var(--gray-btn);border-radius:var(--r-btn);padding:12px 16px;font-weight:500;text-align:center;margin-bottom:12px}
+.details>summary::-webkit-details-marker{display:none}
+.details[open]>summary{background:var(--accent-soft);color:var(--primary-dark)}
