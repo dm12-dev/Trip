@@ -280,6 +280,29 @@
       const row = document.getElementById('leg-' + i);
       if (row && !row.dataset.ok) row.innerHTML = `<span class="leg-i">${(coords[i] && coords[i + 1]) ? '경로 계산 실패' : '위치 미확인'}</span>`;
     });
+    // 선택되지 않은 식사 2·3안 등 대안 식당 위치도 보조 핀으로 표시 (경로 선에는 미포함)
+    const mainQs = new Set(stops.map((s) => s.q));
+    const alts = [];
+    day.items.forEach((it) => {
+      if (!it.options || !it.options.length) return;
+      const c = choiceOf(it);
+      it.options.forEach((op, idx) => {
+        if (idx === c || !op.q || mainQs.has(op.q)) return;
+        alts.push({ name: op.name, q: op.q, optNo: idx + 1, meal: it.optLabel || it.name, menu: op.menu });
+      });
+    });
+    if (alts.length) {
+      const altCoords = await resolveStops(alts);
+      if (token !== S.mapToken) return;
+      alts.forEach((a, i) => {
+        if (!altCoords[i]) return;
+        const icon = L.divIcon({ className: '', html: `<div class="pin pin-alt">${a.optNo}안</div>`, iconSize: [28, 20], iconAnchor: [14, 10] });
+        const mAlt = L.marker(altCoords[i], { icon, title: `[${a.optNo}안] ${a.name}`, zIndexOffset: -100 })
+          .addTo(map)
+          .bindPopup(`<b>[${esc(a.meal)} · ${a.optNo}안] ${esc(a.name)}</b>${a.menu ? `<br><small>${esc(a.menu)}</small>` : ''}`);
+        if (S.showLabels) mAlt.bindTooltip(`${a.optNo}안 ${a.name}`, { permanent: true, direction: 'right', offset: [14, 0], className: 'pin-lbl pin-lbl-alt' });
+      });
+    }
   }
 
   async function drawAllDaysMap(t, token) {
