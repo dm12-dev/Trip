@@ -200,3 +200,16 @@ dialog h3{margin:0 0 14px;font-size:20px;font-weight:500;text-align:center}
 .spot-filter{display:flex;gap:var(--gap);margin-bottom:4px}
 .spot-filter .btn{flex:1;padding:9px 8px;font-size:14px}
 .spot-links{display:flex;gap:var(--gap);flex-wrap:wrap}
+
+/* 전체 일정 지도 (일자별 색상/범례) */
+.pin-all{width:24px;height:24px;font-size:11px}
+.legend{display:flex;gap:var(--gap);flex-wrap:wrap;margin:0 0 12px}
+.legend-chip{display:inline-flex;align-items:center;gap:6px;border:0;background:var(--card);color:var(--text);border-radius:var(--r-btn);padding:7px 12px;font-size:13px;font-weight:500;cursor:pointer;transition:opacity .2s var(--ease)}
+.legend-chip.off{opacity:.4;text-decoration:line-through}
+.legend-chip .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.all-days-list{display:grid;gap:var(--gap)}
+.all-day-card{padding:14px 16px;margin-bottom:0}
+.all-day-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;font-size:14px}
+.all-day-head span{color:var(--muted);flex:1;min-width:100px}
+.all-day-go{padding:5px 10px;font-size:12px}
+.all-day-route{font-size:13px;color:var(--muted);line-height:1.5}

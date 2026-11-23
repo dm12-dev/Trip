@@ -44,7 +44,8 @@
   }
 
   // ---------- 상태 ----------
-  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, tab: 'day', spotCat: '관광', day: 1, stop: 0, mapMode: 'place', infoOpen: false, detailsOpen: false };
+  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, tab: 'day', spotCat: '관광', day: 1, stop: 0, mapMode: 'place', infoOpen: false, detailsOpen: false, hiddenDays: {} };
+  const DAY_COLORS = ['#0381fe', '#12a150', '#e65100', '#8e24aa', '#d81b60', '#00897b'];
   const K = (suffix) => `ftrip:${S.tripId}:${suffix}`;
   const store = {
     get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
@@ -254,6 +255,101 @@
     });
   }
 
+  async function drawAllDaysMap(t, token) {
+    const el = $('#map');
+    if (!el) return;
+    if (S.map) { S.map.remove(); S.map = null; }
+    if (!window.L) { el.innerHTML = '<p class="loading">지도 라이브러리를 불러오지 못했습니다. 네트워크를 확인해 주세요.</p>'; return; }
+    const map = L.map(el, { scrollWheelZoom: false }).setView([35.0, 135.0], 5);
+    S.map = map; S.dayLayers = {};
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+    const status = $('#mapStatus');
+    status.textContent = '전체 일정 경로를 불러오는 중…';
+
+    const allPts = [];
+    const missingAll = [];
+    for (let di = 0; di < t.days.length; di++) {
+      const day = t.days[di];
+      const color = DAY_COLORS[(day.day - 1) % DAY_COLORS.length];
+      const stops = routeStops(day);
+      const coords = await resolveStops(stops);
+      if (token !== S.mapToken) return;
+
+      const lg = L.layerGroup();
+      S.dayLayers[day.day] = lg;
+
+      stops.forEach((s, i) => {
+        if (!coords[i]) { missingAll.push(`D${day.day} ${s.name}`); return; }
+        allPts.push(coords[i]);
+        const icon = L.divIcon({
+          className: '',
+          html: `<div class="pin pin-all" style="background:${color}">${i + 1}</div>`,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
+        L.marker(coords[i], { icon, title: `[DAY ${day.day}] ${s.name}` })
+          .bindPopup(`<b style="color:${color}">DAY ${day.day} · ${i + 1}. ${esc(s.name)}</b><br>${esc(s.t)}`)
+          .addTo(lg);
+      });
+
+      const idxs = stops.map((s, i) => i).filter((i) => coords[i]);
+      const legs = idxs.slice(0, -1).map((i, k) => [i, idxs[k + 1]]);
+      let osrm = null;
+      if (idxs.length > 1) {
+        const path = idxs.map((i) => coords[i][1] + ',' + coords[i][0]).join(';');
+        osrm = await geoFetch('https://router.project-osrm.org/route/v1/driving/' + path + '?overview=false&steps=true&geometries=geojson');
+        if (token !== S.mapToken) return;
+      }
+      legs.forEach(([a, b], k) => {
+        const leg = osrm && osrm.routes && osrm.routes[0] && osrm.routes[0].legs[k];
+        if (leg) {
+          const pts2 = [];
+          leg.steps.forEach((st) => st.geometry.coordinates.forEach((c) => pts2.push([c[1], c[0]])));
+          L.polyline(pts2, { color, weight: 4.5, opacity: 0.85 }).addTo(lg);
+        } else {
+          L.polyline([coords[a], coords[b]], { color, weight: 3.5, opacity: 0.75, dashArray: '6 8' }).addTo(lg);
+        }
+      });
+
+      if (!S.hiddenDays[day.day]) lg.addTo(map);
+    }
+
+    if (allPts.length) map.fitBounds(L.latLngBounds(allPts).pad(0.18));
+    status.textContent = missingAll.length ? `⚠ 위치 미확인: ${missingAll.join(', ')}` : '';
+  }
+
+  function renderAllDaysMap(t) {
+    S.mapToken = (S.mapToken || 0) + 1;
+    const token = S.mapToken;
+    setTimeout(() => drawAllDaysMap(t, token), 0);
+    const legend = t.days.map((d) => {
+      const color = DAY_COLORS[(d.day - 1) % DAY_COLORS.length];
+      const off = !!S.hiddenDays[d.day];
+      return `<button class="legend-chip ${off ? 'off' : ''}" data-act="toggleDayLayer" data-day="${d.day}" aria-pressed="${!off}"><span class="dot" style="background:${color}"></span>DAY ${d.day} (${esc(d.label)})</button>`;
+    }).join('');
+    const summaries = t.days.map((d) => {
+      const color = DAY_COLORS[(d.day - 1) % DAY_COLORS.length];
+      const stops = routeStops(d);
+      return `
+        <article class="card all-day-card" style="border-left:4px solid ${color}">
+          <div class="all-day-head">
+            <strong style="color:${color}">DAY ${d.day} · ${esc(d.label)}</strong>
+            <span>${esc(d.title || '')}</span>
+            <button class="btn all-day-go" data-act="day" data-day="${d.day}">상세 지도 →</button>
+          </div>
+          <div class="all-day-route">${stops.map((s) => esc(s.name)).join(' → ')}</div>
+        </article>`;
+    }).join('');
+    return `
+      <section id="day-all">
+        <div class="day-head"><h2>전체 일정 지도</h2><span>일자별 색상 구분 · 범례를 눌러 켜고 끌 수 있습니다</span></div>
+        <div class="map-wrap"><div id="map" class="map" role="img" aria-label="전체 일정 경로 지도"></div></div>
+        <div id="mapStatus" class="map-status"></div>
+        <div class="legend" role="group" aria-label="일자별 동선 표시">${legend}</div>
+        <div class="all-days-list">${summaries}</div>
+      </section>`;
+  }
+
   function renderDay(day) {
     const stops = routeStops(day);
     const rows = stops.map((s, i) => `
@@ -376,8 +472,8 @@
         <button class="${S.tab === 'food' ? 'on' : ''}" data-act="tab" data-tab="food" role="tab" aria-selected="${S.tab === 'food'}">🍽 식당 모음</button>
         <button class="${S.tab === 'spots' ? 'on' : ''}" data-act="tab" data-tab="spots" role="tab" aria-selected="${S.tab === 'spots'}">🎡 관광지 모음</button>
       </div>
-      ${S.tab === 'day' ? `<nav class="daynav">${t.days.map((d) => `<button class="${d.day === S.day ? 'on' : ''}" data-act="day" data-day="${d.day}">DAY ${d.day} · ${esc(d.label)}</button>`).join('')}</nav>
-      ${renderDay(t.days.find((d) => d.day === S.day) || t.days[0])}` : S.tab === 'food' ? renderFoodView(t) : renderSpotsView(t)}`;
+      ${S.tab === 'day' ? `<nav class="daynav">${t.days.map((d) => `<button class="${S.day === d.day ? 'on' : ''}" data-act="day" data-day="${d.day}">DAY ${d.day} · ${esc(d.label)}</button>`).join('')}<button class="${S.day === 'all' ? 'on' : ''}" data-act="day" data-day="all">🗺 전체</button></nav>
+      ${S.day === 'all' ? renderAllDaysMap(t) : renderDay(t.days.find((d) => d.day === S.day) || t.days[0])}` : S.tab === 'food' ? renderFoodView(t) : renderSpotsView(t)}`;
     $('#modeOrig').classList.toggle('on', S.mode === 'orig');
     $('#modeMod').classList.toggle('on', S.mode === 'mod');
     $('#tools').classList.toggle('hidden', S.mode !== 'mod');
@@ -454,8 +550,17 @@
       return;
     }
     if (act === 'spotcat') { S.spotCat = b.dataset.cat; render(); return; }
+    if (act === 'toggleDayLayer') {
+      const dno = +b.dataset.day;
+      S.hiddenDays[dno] = !S.hiddenDays[dno];
+      const lg = S.dayLayers && S.dayLayers[dno];
+      if (lg && S.map) { if (S.hiddenDays[dno]) S.map.removeLayer(lg); else lg.addTo(S.map); }
+      b.classList.toggle('off', !!S.hiddenDays[dno]);
+      b.setAttribute('aria-pressed', String(!S.hiddenDays[dno]));
+      return;
+    }
     if (act === 'day') {
-      S.day = +b.dataset.day; S.stop = 0; render();
+      S.day = b.dataset.day === 'all' ? 'all' : +b.dataset.day; S.stop = 0; render();
       const nav = $('.daynav'), bar = $('.appbar');
       if (nav) window.scrollTo({ top: Math.max(0, nav.offsetTop - (bar ? bar.offsetHeight : 0) - 4) });
       return;
