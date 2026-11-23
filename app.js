@@ -44,8 +44,21 @@
   }
 
   // ---------- 상태 ----------
-  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, tab: 'day', spotCat: '관광', day: 'all', stop: 0, mapMode: 'place', infoOpen: false, detailsOpen: false, hiddenDays: {} };
+  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, tab: 'day', spotCat: '관광', day: 'all', stop: 0, mapLang: localStorage.getItem('ftrip:mapLang') || 'en', showLabels: localStorage.getItem('ftrip:mapLbl') !== '0', infoOpen: false, detailsOpen: false, hiddenDays: {} };
   const DAY_COLORS = ['#0381fe', '#12a150', '#e65100', '#8e24aa', '#d81b60', '#00897b'];
+  function addBaseLayer(map) {
+    if (S.baseLayer) map.removeLayer(S.baseLayer);
+    S.baseLayer = S.mapLang === 'ja'
+      ? L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' })
+      : L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+    S.baseLayer.addTo(map);
+  }
+  const mapToolbarHtml = () => `
+    <div class="map-toolbar">
+      <button class="btn ${S.mapLang === 'en' ? 'primary' : ''}" data-act="maplang" data-lang="en">🌐 영문 지도</button>
+      <button class="btn ${S.mapLang === 'ja' ? 'primary' : ''}" data-act="maplang" data-lang="ja">🇯🇵 일본어 지도</button>
+      <button class="btn ${S.showLabels ? 'primary' : ''}" data-act="maplbl">🏷 한국어 이름표</button>
+    </div>`;
   const K = (suffix) => `ftrip:${S.tripId}:${suffix}`;
   const store = {
     get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
@@ -204,8 +217,8 @@
     if (S.map) { S.map.remove(); S.map = null; }
     if (!window.L) { el.innerHTML = '<p class="loading">지도 라이브러리를 불러오지 못했습니다. 네트워크를 확인해 주세요.</p>'; return; }
     const map = L.map(el, { scrollWheelZoom: false }).setView([35.0, 135.0], 5);
-    S.map = map; S.markers = []; S.legLines = [];
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+    S.map = map; S.markers = []; S.legLines = []; S.baseLayer = null;
+    addBaseLayer(map);
     const status = $('#mapStatus');
     status.textContent = '장소 위치를 찾는 중…';
     const coords = await resolveStops(stops);
@@ -216,6 +229,7 @@
       pts.push(coords[i]);
       const icon = L.divIcon({ className: '', html: `<div class="pin ${i === 0 ? 'start' : i === stops.length - 1 ? 'end' : ''}">${i + 1}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
       const m = L.marker(coords[i], { icon, title: s.name }).addTo(map).bindPopup(`<b>${i + 1}. ${esc(s.name)}</b><br>${esc(s.t)}`);
+      if (S.showLabels) m.bindTooltip(`${i + 1}. ${s.name}`, { permanent: true, direction: 'right', offset: [10, 0], className: 'pin-lbl' });
       S.markers[i] = m;
     });
     if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25)); 
@@ -261,8 +275,8 @@
     if (S.map) { S.map.remove(); S.map = null; }
     if (!window.L) { el.innerHTML = '<p class="loading">지도 라이브러리를 불러오지 못했습니다. 네트워크를 확인해 주세요.</p>'; return; }
     const map = L.map(el, { scrollWheelZoom: false }).setView([35.0, 135.0], 5);
-    S.map = map; S.dayLayers = {};
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+    S.map = map; S.dayLayers = {}; S.baseLayer = null;
+    addBaseLayer(map);
     const status = $('#mapStatus');
     status.textContent = '전체 일정 경로를 불러오는 중…';
 
@@ -287,9 +301,10 @@
           iconSize: [24, 24],
           iconAnchor: [12, 12],
         });
-        L.marker(coords[i], { icon, title: `[DAY ${day.day}] ${s.name}` })
+        const mAll = L.marker(coords[i], { icon, title: `[DAY ${day.day}] ${s.name}` })
           .bindPopup(`<b style="color:${color}">DAY ${day.day} · ${i + 1}. ${esc(s.name)}</b><br>${esc(s.t)}`)
           .addTo(lg);
+        if (S.showLabels) mAll.bindTooltip(`D${day.day}-${i + 1} ${s.name}`, { permanent: true, direction: 'right', offset: [8, 0], className: 'pin-lbl' });
       });
 
       const idxs = stops.map((s, i) => i).filter((i) => coords[i]);
@@ -343,6 +358,7 @@
     return `
       <section id="day-all">
         <div class="day-head"><h2>전체 일정 지도</h2><span>일자별 색상 구분 · 범례를 눌러 켜고 끌 수 있습니다</span></div>
+        ${mapToolbarHtml()}
         <div class="map-wrap"><div id="map" class="map" role="img" aria-label="전체 일정 경로 지도"></div></div>
         <div id="mapStatus" class="map-status"></div>
         <div class="legend" role="group" aria-label="일자별 동선 표시">${legend}</div>
@@ -365,6 +381,7 @@
     return `
       <section id="day${day.day}">
         <div class="day-head"><h2>DAY ${day.day}</h2><span>${esc(day.label)} · ${esc(day.title || '')}</span></div>
+        ${mapToolbarHtml()}
         <div class="map-wrap"><div id="map" class="map" role="img" aria-label="DAY ${day.day} 전체 경로 지도"></div></div>
         <div id="mapStatus" class="map-status"></div>
         <div class="stops" aria-label="일자별 방문 순서">${rows}</div>
@@ -558,6 +575,16 @@
       return;
     }
     if (act === 'spotcat') { S.spotCat = b.dataset.cat; render(); return; }
+    if (act === 'maplang') {
+      S.mapLang = b.dataset.lang; localStorage.setItem('ftrip:mapLang', S.mapLang);
+      if (S.map) addBaseLayer(S.map);
+      document.querySelectorAll('[data-act="maplang"]').forEach((btn) => btn.classList.toggle('primary', btn.dataset.lang === S.mapLang));
+      return;
+    }
+    if (act === 'maplbl') {
+      S.showLabels = !S.showLabels; localStorage.setItem('ftrip:mapLbl', S.showLabels ? '1' : '0');
+      render(); return;
+    }
     if (act === 'toggleDayLayer') {
       const dno = +b.dataset.day;
       S.hiddenDays[dno] = !S.hiddenDays[dno];
