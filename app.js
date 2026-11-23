@@ -44,7 +44,7 @@
   }
 
   // ---------- 상태 ----------
-  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, day: 1, stop: 0, mapMode: 'place', infoOpen: false, detailsOpen: false };
+  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, tab: 'day', spotCat: '관광', day: 1, stop: 0, mapMode: 'place', infoOpen: false, detailsOpen: false };
   const K = (suffix) => `ftrip:${S.tripId}:${suffix}`;
   const store = {
     get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
@@ -118,6 +118,7 @@
           ${it.optLabel ? `<div class="opt-label">${esc(it.optLabel)} 선택</div>` : ''}
           <div class="opts" role="radiogroup">${it.options.map((op, i) => `<button role="radio" aria-checked="${i === c}" class="${i === c ? 'on' : ''}" data-act="choose" data-id="${it.id}" data-i="${i}">${i === c ? '✓ ' : ''}${i + 1}안</button>`).join('')}</div>
           <div class="opt-name">🍽 ${esc(sel.name)}</div>
+          ${sel.menu ? `<div class="opt-menu">🍴 ${esc(sel.menu)}</div>` : ''}
           <a class="maplink ${isMeal(it) ? '' : 'alt'}" target="_blank" rel="noopener" href="${searchUrl(sel.q)}">📍 ${esc(sel.name)} 지도</a>`;
       }
       let rain = '';
@@ -282,6 +283,74 @@
   }
   const origItemsOfDay = (n) => S.orig.days.find((d) => d.day === n).items;
 
+  function renderFoodView(t) {
+    const sections = t.days.map((d) => {
+      const meals = d.items.filter((it) => (it.options && it.options.length) || it.cat === '식사');
+      if (!meals.length) return '';
+      return `
+        <section>
+          <div class="day-head"><h2>DAY ${d.day}</h2><span>${esc(d.label)} · ${esc(d.title || '')}</span></div>
+          ${meals.map((it) => {
+            const title = it.optLabel ? `${it.name} (${it.optLabel})` : it.name;
+            if (it.options && it.options.length) {
+              const c = choiceOf(it);
+              return `
+                <article class="card">
+                  <div class="item-top"><span class="time">${esc(timeText(it))}</span><span class="tag 식사">${esc(title)}</span></div>
+                  <div class="food-list">
+                    ${it.options.map((op, i) => `
+                      <div class="food-opt ${i === c ? 'on' : ''}">
+                        <div class="food-opt-head">
+                          <button class="btn ${i === c ? 'primary' : ''}" data-act="choose" data-id="${it.id}" data-i="${i}">${i === c ? '✓ ' : ''}${i + 1}안</button>
+                          <strong class="food-name">${esc(op.name)}</strong>
+                          <a class="maplink alt food-map" target="_blank" rel="noopener" href="${searchUrl(op.q)}">📍 지도</a>
+                        </div>
+                        ${op.menu ? `<div class="food-menu">🍴 주요 메뉴: ${esc(op.menu)}</div>` : ''}
+                      </div>`).join('')}
+                  </div>
+                </article>`;
+            }
+            return `
+              <article class="card">
+                <div class="item-top"><span class="time">${esc(timeText(it))}</span><span class="tag 식사">식사</span></div>
+                <h3>${esc(title)}</h3>
+                ${it.memo ? `<div class="memo">${esc(it.memo)}</div>` : ''}
+                ${it.q ? `<a class="maplink" target="_blank" rel="noopener" href="${searchUrl(it.q)}">📍 구글 지도</a>` : ''}
+              </article>`;
+          }).join('')}
+        </section>`;
+    }).join('');
+    return sections || '<p class="loading">등록된 식사 일정이 없습니다.</p>';
+  }
+
+  function renderSpotsView(t) {
+    const includeShop = S.spotCat === 'all';
+    const filterBar = `
+      <div class="spot-filter" role="group" aria-label="장소 분류">
+        <button class="btn ${!includeShop ? 'primary' : ''}" data-act="spotcat" data-cat="관광">🎡 관광지만</button>
+        <button class="btn ${includeShop ? 'primary' : ''}" data-act="spotcat" data-cat="all">🛍 쇼핑 포함 전체</button>
+      </div>`;
+    const sections = t.days.map((d) => {
+      const spots = d.items.filter((it) => it.type !== 'move' && (includeShop ? (it.cat === '관광' || it.cat === '쇼핑') : it.cat === '관광'));
+      if (!spots.length) return '';
+      return `
+        <section>
+          <div class="day-head"><h2>DAY ${d.day}</h2><span>${esc(d.label)} · ${esc(d.title || '')}</span></div>
+          ${spots.map((it) => `
+            <article class="card">
+              <div class="item-top"><span class="time">${esc(timeText(it))}</span><span class="tag ${esc(it.cat)}">${esc(it.cat)}</span></div>
+              <h3>${esc(it.name)}</h3>
+              ${it.memo ? `<div class="memo">${esc(it.memo)}</div>` : ''}
+              <div class="spot-links">
+                ${it.q ? `<a class="maplink" target="_blank" rel="noopener" href="${searchUrl(it.q)}">📍 구글 지도</a>` : ''}
+                ${it.rain ? `<a class="maplink alt" target="_blank" rel="noopener" href="${searchUrl(it.rain.q)}">☔ 우천: ${esc(it.rain.name)}</a>` : ''}
+              </div>
+            </article>`).join('')}
+        </section>`;
+    }).join('');
+    return filterBar + (sections || '<p class="loading">해당하는 장소가 없습니다.</p>');
+  }
+
   function render() {
     const t = view();
     const lod = t.lodging;
@@ -302,8 +371,13 @@
           <div class="info-row"><b>💴 예산</b><span>${esc(t.budget)}</span></div>
         </div>
       </details>
-      <nav class="daynav">${t.days.map((d) => `<button class="${d.day === S.day ? 'on' : ''}" data-act="day" data-day="${d.day}">DAY ${d.day} · ${esc(d.label)}</button>`).join('')}</nav>
-      ${renderDay(t.days.find((d) => d.day === S.day) || t.days[0])}`;
+      <div class="viewtabs" role="tablist" aria-label="보기 방식">
+        <button class="${S.tab === 'day' ? 'on' : ''}" data-act="tab" data-tab="day" role="tab" aria-selected="${S.tab === 'day'}">🗺 일자별 지도</button>
+        <button class="${S.tab === 'food' ? 'on' : ''}" data-act="tab" data-tab="food" role="tab" aria-selected="${S.tab === 'food'}">🍽 식당 모음</button>
+        <button class="${S.tab === 'spots' ? 'on' : ''}" data-act="tab" data-tab="spots" role="tab" aria-selected="${S.tab === 'spots'}">🎡 관광지 모음</button>
+      </div>
+      ${S.tab === 'day' ? `<nav class="daynav">${t.days.map((d) => `<button class="${d.day === S.day ? 'on' : ''}" data-act="day" data-day="${d.day}">DAY ${d.day} · ${esc(d.label)}</button>`).join('')}</nav>
+      ${renderDay(t.days.find((d) => d.day === S.day) || t.days[0])}` : S.tab === 'food' ? renderFoodView(t) : renderSpotsView(t)}`;
     $('#modeOrig').classList.toggle('on', S.mode === 'orig');
     $('#modeMod').classList.toggle('on', S.mode === 'mod');
     $('#tools').classList.toggle('hidden', S.mode !== 'mod');
@@ -373,6 +447,13 @@
     const act = b.dataset.act, id = b.dataset.id;
     if (act === 'choose') { S.sel.choice[id] = +b.dataset.i; store.set(K('sel'), S.sel); render(); return; }
     if (act === 'dlgcancel') { $('#dlg').close(); return; }
+    if (act === 'tab') {
+      S.tab = b.dataset.tab; render();
+      const vt = $('.viewtabs'), bar = $('.appbar');
+      if (vt) window.scrollTo({ top: Math.max(0, vt.offsetTop - (bar ? bar.offsetHeight : 0) - 4) });
+      return;
+    }
+    if (act === 'spotcat') { S.spotCat = b.dataset.cat; render(); return; }
     if (act === 'day') {
       S.day = +b.dataset.day; S.stop = 0; render();
       const nav = $('.daynav'), bar = $('.appbar');

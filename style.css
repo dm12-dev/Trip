@@ -183,3 +183,20 @@ dialog h3{margin:0 0 14px;font-size:20px;font-weight:500;text-align:center}
 .leg{margin:2px 0 2px 24px;padding:4px 10px;border-left:3px solid var(--primary-dark);font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:2px;cursor:pointer}
 .leg .leg-i{color:var(--text)}
 .leg .leg-p{color:var(--primary-dark);font-weight:500}
+
+/* 보기 방식 탭 + 식당 모음 + 관광지 모음 */
+.viewtabs{display:flex;gap:var(--gap);margin:0 0 10px}
+.viewtabs button{flex:1;border:0;background:var(--card);color:var(--muted);border-radius:var(--r-btn);padding:10px 6px;font-size:14px;font-weight:500;cursor:pointer;transition:background .2s var(--ease),color .2s var(--ease)}
+.viewtabs button.on{background:var(--accent-soft);color:var(--primary-dark)}
+.opt-menu{font-size:13px;color:var(--muted);margin:-4px 0 10px}
+.food-list{display:grid;gap:8px;margin-top:8px}
+.food-opt{padding:10px 12px;border-radius:var(--r-s);background:var(--bg);transition:background .2s var(--ease)}
+.food-opt.on{background:var(--accent-soft)}
+.food-opt-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.food-opt-head .btn{padding:6px 10px;font-size:13px}
+.food-name{flex:1;font-size:15px;font-weight:500;min-width:120px}
+.food-map{padding:6px 10px;font-size:13px}
+.food-menu{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.4}
+.spot-filter{display:flex;gap:var(--gap);margin-bottom:4px}
+.spot-filter .btn{flex:1;padding:9px 8px;font-size:14px}
+.spot-links{display:flex;gap:var(--gap);flex-wrap:wrap}
