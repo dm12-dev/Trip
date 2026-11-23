@@ -44,7 +44,7 @@
   }
 
   // ---------- 상태 ----------
-  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, tab: 'day', spotCat: '관광', day: 1, stop: 0, mapMode: 'place', infoOpen: false, detailsOpen: false, hiddenDays: {} };
+  const S = { index: [], orig: null, mod: null, sel: { choice: {}, rain: {} }, mode: 'orig', tripId: null, tab: 'day', spotCat: '관광', day: 'all', stop: 0, mapMode: 'place', infoOpen: false, detailsOpen: false, hiddenDays: {} };
   const DAY_COLORS = ['#0381fe', '#12a150', '#e65100', '#8e24aa', '#d81b60', '#00897b'];
   const K = (suffix) => `ftrip:${S.tripId}:${suffix}`;
   const store = {
@@ -480,7 +480,7 @@
         <button class="${S.tab === 'food' ? 'on' : ''}" data-act="tab" data-tab="food" role="tab" aria-selected="${S.tab === 'food'}">🍽 식당 모음</button>
         <button class="${S.tab === 'spots' ? 'on' : ''}" data-act="tab" data-tab="spots" role="tab" aria-selected="${S.tab === 'spots'}">🎡 관광지 모음</button>
       </div>
-      ${S.tab === 'day' ? `<nav class="daynav">${t.days.map((d) => `<button class="${S.day === d.day ? 'on' : ''}" data-act="day" data-day="${d.day}">DAY ${d.day} · ${esc(d.label)}</button>`).join('')}<button class="${S.day === 'all' ? 'on' : ''}" data-act="day" data-day="all">🗺 전체</button></nav>
+      ${S.tab === 'day' ? `<nav class="daynav"><button class="${S.day === 'all' ? 'on' : ''}" data-act="day" data-day="all">🗺 전체</button>${t.days.map((d) => `<button class="${S.day === d.day ? 'on' : ''}" data-act="day" data-day="${d.day}">DAY ${d.day} · ${esc(d.label)}</button>`).join('')}</nav>
       ${S.day === 'all' ? renderAllDaysMap(t) : renderDay(t.days.find((d) => d.day === S.day) || t.days[0])}` : S.tab === 'food' ? renderFoodView(t) : renderSpotsView(t)}`;
     $('#modeOrig').classList.toggle('on', S.mode === 'orig');
     $('#modeMod').classList.toggle('on', S.mode === 'mod');
@@ -630,7 +630,7 @@
   async function loadTrip(id) {
     const entry = S.index.find((t) => t.id === id) || S.index[0];
     if (!entry) { $('#app').innerHTML = '<p class="loading">등록된 여행이 없습니다.</p>'; return; }
-    S.tripId = entry.id; S.day = 1; S.stop = 0;
+    S.tripId = entry.id; S.day = 'all'; S.stop = 0;
     $('#tripSelect').value = entry.id;
     try { S.orig = await getJson(`trips/${entry.file || entry.id + '.json'}`); }
     catch (e) { $('#app').innerHTML = `<p class="loading">여행 데이터를 불러올 수 없습니다: ${esc(e.message)}</p>`; return; }
